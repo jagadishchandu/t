@@ -1,0 +1,39 @@
+## Validates Terraform configuration for Pull requests
+pool:
+  name: Azure Pipelines
+
+trigger: none
+
+variables:
+- group: PJTDEV-Nova-kvlt
+- group: PJTDEV-vmsecrets
+
+steps:
+- script: pip install checkov
+  displayName: Install Checkov
+- script: checkov -d .
+  displayName: Run checkov tests
+- task: TerraformInstaller@0
+  inputs:
+    terraformVersion: 'latest'
+
+- script: |
+   terraform init \
+     -input=false \
+     -backend-config="access_key=$(pjtdev-nova-pjtdevnovastorage-key1)"
+  displayName: 'Terraform init'
+
+- script: 'terraform validate'
+  displayName: 'Terraform validate'
+
+- script: |
+   terraform plan \
+    -input=false \
+    -var="spn_client_id=$(pjtdev-nova-clientid)" \
+    -var="spn_client_secret=$(pjtdev-nova-secret)" \
+    -var="spn_tenant_id=$(pjtdev-nova-tenantid)" \
+    -var="server-admin-user=$(server-admin-user)" \
+    -var="server-admin-password=$(server-admin-password)" \
+    -var "dc-admin-user=$(server-admin-user)" \
+    -var "dc-admin-password=$(AD-DomainAdmin-password)"
+  displayName: 'Terraform plan'

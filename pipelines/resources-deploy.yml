@@ -1,0 +1,44 @@
+resources:
+  pipelines:
+  - pipeline: terraform-plan-and-publish
+    source: resources plan and publish
+    branch: main
+    trigger: true
+
+pool:
+  vmImage: ubuntu-latest
+
+trigger: none
+
+variables:
+- group: PJTDEV-Nova-kvlt
+
+jobs:
+- deployment: Terraform_Deploy
+  displayName: 'Deploy Terraform configuration'
+  # creates an environment if it doesn't exist
+  environment: 'Resources - DEV'
+  strategy:
+    runOnce:
+      deploy:
+        steps:
+        - task: TerraformInstaller@0
+          inputs:
+            terraformVersion: 'latest'
+
+        - download: terraform-plan-and-publish
+          artifact: drop
+        - task: ExtractFiles@1
+          displayName: 'Extract files'
+          inputs:
+            archiveFilePatterns: '$(Pipeline.Workspace)/terraform-plan-and-publish/drop/tfplan.zip'
+            destinationFolder: '$(System.DefaultWorkingDirectory)'
+            cleanDestinationFolder: true
+        - script: |
+            terraform init \
+            -input=false \
+            -backend-config="access_key=$(pjtdev-nova-pjtdevnovastorage-key1)"
+          displayName: 'Terraform init'
+
+        - script: 'terraform apply -auto-approve -input=false tfplan'
+          displayName: 'Terraform apply'
